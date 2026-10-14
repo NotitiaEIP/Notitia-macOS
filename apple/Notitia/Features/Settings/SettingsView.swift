@@ -176,7 +176,12 @@ private struct TranscriptionSettings: View {
 }
 
 private struct IntelligenceSettings: View {
-    @AppStorage(Preferences.Keys.aiService) private var serviceID = LocalExtractiveAIService.descriptorValue.id
+    @AppStorage(Preferences.Keys.aiService) private var serviceID = EngineCatalog.defaultAIServiceID
+    @AppStorage(Preferences.Keys.transcriptionLocale) private var localeID = "fr_FR"
+
+    private var unavailability: String? {
+        FoundationModelsAIService.unavailabilityReason(for: Locale(identifier: localeID))
+    }
 
     var body: some View {
         Form {
@@ -187,8 +192,17 @@ private struct IntelligenceSettings: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
+                if serviceID == FoundationModelsAIService.descriptorValue.id {
+                    if let unavailability {
+                        Label("\(unavailability) Le moteur local est utilisé en attendant.", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    } else {
+                        Label("Apple Intelligence est disponible sur ce Mac", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
             } footer: {
-                Text("Le moteur local sélectionne et organise les phrases de vos notes pour produire résumés, mots-clés et cartes mentales. Il fonctionne sans Internet.")
+                Text("Apple Intelligence reformule résumés et cartes mentales sur ce Mac, sans Internet. Chaque point doit citer une phrase de la source : les points dont la phrase est introuvable sont écartés, et un horodatage permet de réécouter la phrase. Le moteur local, lui, sélectionne les phrases telles quelles.")
             }
         }
         .formStyle(.grouped)

@@ -21,15 +21,21 @@
       « Citer avec le contexte » (horodatages cliquables qui rejouent l'audio)
 - [x] Aucune déduction d'émotion (AI Act, voir PRIVACY.md §6) ; 95 tests + 3 tests d'intégration
 
+## Fait — macOS, itération 3 : résumés reformulés
+
+- [x] Résumés, mots-clés et cartes mentales reformulés par **Foundation Models**, sur l'appareil, moteur par défaut
+- [x] Chaque point cite sa phrase source, vérifiée par le code ; repère `[mm:ss]` cliquable vers l'audio
+- [x] Découpage des longues sources, repli automatique sur le moteur extractif
+- [x] Barre de génération (étape en cours, moteur réellement utilisé, Annuler) ; 114 tests + 4 tests d'intégration
+
 ## Prochaines étapes (ordre conseillé)
 
 1. **Tests réels de la transcription enrichie** : une vraie réunion en français, sur plusieurs Mac (micro intégré,
    casque, permission refusée). Vérifier dans l'app sandboxée l'installation du modèle depuis les Réglages
    (sans `network.client`) et régler les seuils des sons et du volume (`SoundEventAggregator`, `LevelAnalyzer`)
    sur de vrais enregistrements, rires compris.
-2. **Résumés génératifs avec Foundation Models** : nouvelle implémentation de `NoteAIService` (en gardant
-   `LocalExtractiveAIService` en repli), brancher `EngineCatalog.aiService(id:)`. Découper les longues
-   transcriptions (fenêtre de contexte) et reprendre la règle « chaque nœud cite son passage source ».
+2. **Résumés sur de vraies réunions longues** (1 h et plus) : mesurer la durée et vérifier la qualité des
+   regroupements entre morceaux (la barre de génération affiche déjà l'étape en cours).
 3. **Séparation des locuteurs** : SpeechAnalyzer ne la fournit pas ; à étudier (sur l'appareil uniquement).
 4. **Éditeur** : annulation des opérations structurelles (aujourd'hui ⌘Z agit dans un bloc), collage
    multi-lignes en plusieurs blocs, sélection sur plusieurs blocs, tableaux, export PDF d'une note.

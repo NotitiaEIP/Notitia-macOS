@@ -4,8 +4,8 @@ import Foundation
 /// les plus représentatives), mots-clés par fréquence, carte mentale par regroupement
 /// thématique. Tout s'exécute sur l'appareil, sans réseau.
 ///
-/// Il sert de moteur par défaut tant que le moteur génératif n'est pas choisi
-/// (Apple Foundation Models ou LLM cloud), et de repli hors ligne ensuite.
+/// Il sert de repli quand Apple Intelligence n'est pas disponible (`FoundationModelsAIService`),
+/// et reste sélectionnable dans les réglages.
 public struct LocalExtractiveAIService: NoteAIService {
     public static let descriptorValue = EngineDescriptor(
         id: "local.extractive",
@@ -136,10 +136,18 @@ public struct LocalExtractiveAIService: NoteAIService {
             root.children.append(topicNode)
         }
 
-        // Branches transverses : personnes et dates citées.
-        let entities = analysis.namedEntities(in: source.text)
+        root.children += Self.entityBranches(source.text, analysis: analysis)
+
+        return MindMapDocument(title: rootLabel, root: root)
+    }
+
+    /// Branches transverses : personnes et dates citées (NaturalLanguage, NSDataDetector).
+    /// Partagées avec `FoundationModelsAIService`.
+    static func entityBranches(_ text: String, analysis: TextAnalysis) -> [MindMapNode] {
+        var branches: [MindMapNode] = []
+        let entities = analysis.namedEntities(in: text)
         if !entities.people.isEmpty {
-            root.children.append(MindMapNode(
+            branches.append(MindMapNode(
                 label: "Personnes",
                 kind: .topic,
                 children: entities.people.prefix(6).map { name in
@@ -147,9 +155,9 @@ public struct LocalExtractiveAIService: NoteAIService {
                 }
             ))
         }
-        let dates = analysis.dateMentions(in: source.text)
+        let dates = analysis.dateMentions(in: text)
         if !dates.isEmpty {
-            root.children.append(MindMapNode(
+            branches.append(MindMapNode(
                 label: "Échéances",
                 kind: .topic,
                 children: dates.prefix(5).map { mention in
@@ -157,8 +165,7 @@ public struct LocalExtractiveAIService: NoteAIService {
                 }
             ))
         }
-
-        return MindMapDocument(title: rootLabel, root: root)
+        return branches
     }
 
     private func kind(of sentence: TextAnalysis.Sentence, in analysis: TextAnalysis) -> MindMapNodeKind {

@@ -1,0 +1,24 @@
+Thomas	Bonjour à tous. On commence la réunion de planification du sprint trois de Notitia.
+Flo (Français (France))	Avant de commencer, je rappelle que la soutenance intermédiaire a lieu le vingt-huit novembre.
+Jacques	Premier sujet, la transcription. Depuis cette semaine, on utilise le moteur d'Apple directement sur le Mac, et les résultats sont très bons en français.
+Thomas	Oui, j'ai testé sur une réunion de quarante minutes, la reconnaissance était presque parfaite.
+Flo (Français (France))	Par contre, on n'a toujours pas la séparation des locuteurs. Pour le jury, ce serait vraiment utile de savoir qui parle.
+Jacques	Je propose qu'on étudie la question, mais sans envoyer l'audio sur un serveur. Tout doit rester sur l'appareil.
+Thomas	D'accord. C'est décidé : la séparation des locuteurs se fera en local, ou on ne la fera pas.
+Flo (Français (France))	Deuxième sujet, le planning. Honnêtement, je trouve qu'on prend beaucoup de retard sur l'éditeur.
+Jacques	Je ne suis pas d'accord, le retard vient surtout des tests qu'on a ajoutés, et c'était nécessaire.
+Flo (Français (France))	Peut-être, mais si les tableaux ne sont pas prêts pour la soutenance, ce sera un vrai problème.
+Thomas	On ne va pas se disputer pour ça. Je propose de retirer les tableaux du sprint et de les reporter au suivant.
+Jacques	Ça me va. Et on garde l'export PDF dans ce sprint.
+Flo (Français (France))	D'accord pour moi aussi. On reporte les tableaux et on garde l'export PDF.
+SILENCE	8
+Thomas	Troisième sujet, la démonstration. Clément s'occupe de préparer le scénario de la démo avant le vingt novembre.
+Jacques	Et Nathan doit rédiger le registre des traitements RGPD pour la même date.
+Flo (Français (France))	Je m'occupe de la traduction anglaise de l'application. J'espère finir d'ici deux semaines.
+Thomas	Pour la démo, on pourrait montrer la carte mentale générée à partir d'une vraie réunion, par exemple celle-ci.
+Jacques	Bonne idée, à condition que personne ne dise de bêtise pendant la réunion.
+Flo (Français (France))	Trop tard pour ça !
+Thomas	Dernier point : est-ce qu'on présente aussi la version iPhone au jury, ou seulement le Mac ?
+Jacques	Je pense qu'il vaut mieux se concentrer sur le Mac. L'application iPhone n'est pas encore prête.
+Flo (Français (France))	On en reparle la semaine prochaine. Il faut d'abord demander l'avis de notre suiveur.
+Thomas	Très bien. Prochaine réunion lundi à quatorze heures. Merci à tous, bonne journée.

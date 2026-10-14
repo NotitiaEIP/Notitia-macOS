@@ -66,8 +66,12 @@ enum DebugSnapshots {
                 }
             }
             workspace.editor?.run(.summary(focus: []))
-            try? await Task.sleep(for: .seconds(1))
+            // Barre de génération, pendant le résumé.
+            try? await Task.sleep(for: .seconds(2))
+            if workspace.editor?.isGenerating == true { capture("2-generating-light") }
+            await waitForGeneration(workspace)
             workspace.editor?.run(.mindMap(focus: []))
+            await waitForGeneration(workspace)
             try? await Task.sleep(for: .seconds(1.5))
             capture("2-meeting-light")
             if let mapID = workspace.editor?.blocks.first(where: { $0.kind == .mindMap })?.id {
@@ -91,6 +95,14 @@ enum DebugSnapshots {
         try? await Task.sleep(for: .seconds(1.5))
         capture("5-note-dark")
         NSApp.appearance = nil
+    }
+
+    /// Avec Apple Intelligence, une génération prend plusieurs secondes.
+    static func waitForGeneration(_ workspace: Workspace) async {
+        try? await Task.sleep(for: .seconds(0.5))
+        for _ in 0..<120 where workspace.editor?.isGenerating == true {
+            try? await Task.sleep(for: .seconds(0.5))
+        }
     }
 
     static func capture(_ name: String) {

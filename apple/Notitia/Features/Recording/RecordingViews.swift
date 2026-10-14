@@ -274,7 +274,9 @@ struct TranscriptBlockView: View {
             if !isLive {
                 Menu {
                     Button("Résumer") { model.run(.summary(focus: [])) }
+                        .disabled(model.isGenerating)
                     Button("Carte mentale") { model.run(.mindMap(focus: [])) }
+                        .disabled(model.isGenerating)
                     Button("Analyser le ton des passages") {
                         if let recording { recorder.analyzeTone(of: recording) }
                     }

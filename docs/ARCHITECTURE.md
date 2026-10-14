@@ -16,7 +16,8 @@
 │ Editor   : BlockOperations, MarkdownShortcut, MindMapLayout,              │
 │            TranscriptTimeline (pur, testé)                                │
 │ AI       : TranscriptionEngine, AnnotationDetector, NoteAIService         │
-│            (protocoles) + SpeechAnalyzer, SoundAnalysis, ToneAnalyzer…    │
+│            (protocoles) + SpeechAnalyzer, SoundAnalysis, ToneAnalyzer,    │
+│            FoundationModelsAIService (+ vérification des sources)         │
 │ Audio    : AudioRecorder (AVAudioEngine)                                  │
 │ Privacy  : AudioVault (AES-GCM), KeyStore (trousseau), RetentionPolicy,   │
 │            TranscriptIntegrity (empreinte SHA-256)                        │
@@ -42,7 +43,7 @@ Tests = `NotitiaKit/Tests/NotitiaKitTests/`.
 | Éditeur par blocs | `Features/Editor/NoteEditorView`, `NoteEditorModel`, `BlockRowView` (rendu d'un bloc, menu `/`, images), `BlockTextView` (NSTextView), `RichTextView`, `RichTextConverter` | `Models/Block` (`BlockKind`, `NoteDocument`), `Models/RichText`, `Models/NoteColor`, `Editor/BlockOperations`, `Editor/MarkdownShortcut` | `BlockOperationsTests`, `RichTextTests` |
 | Enregistrement et transcription | `Features/Recording/RecordingController` (un flux micro → toutes les analyses), `RecordingViews` (consentement, barre, bloc transcription), `AudioPlaybackController` | `Audio/AudioRecorder`, `Models/TranscriptSegment`, `AI/AIProtocols` (`TranscriptionEngine`, `EngineCatalog`), `AI/AppleSpeechTranscriptionEngine` (SpeechAnalyzer), `AI/DemoTranscriptionEngine` | `TranscriptAnnotationTests` (« Transcription Apple et ton »), `AITests`, `AppleEnginesIntegrationTests` |
 | Transcription enrichie (sons, volume, ton, citations, empreinte) | `RecordingViews` (`TranscriptBlockView` : puces, bandeau de ton, « Citer avec le contexte »), `Features/Inspector/InspectorView` (état de l'empreinte), `Features/Settings/SettingsView` (`TranscriptionSettings`) | `Models/TranscriptAnnotation`, `AI/AnnotationDetectors` (`SoundEventDetector`, `LevelAnnotationDetector`), `AI/SoundEventAggregator` (+ `LevelAnalyzer`), `AI/ToneAnalyzer` (+ `TonePassages`), `Editor/TranscriptTimeline` (+ `TranscriptLink`), `Privacy/TranscriptIntegrity` | `TranscriptAnnotationTests`, `AppleEnginesIntegrationTests` |
-| IA locale (résumé, mots-clés, carte mentale) | `Features/MindMap/MindMapViews`, `Features/Settings/SettingsView` (choix des moteurs) | `AI/AIProtocols` (`NoteAIService`), `AI/LocalExtractiveAIService`, `AI/TextAnalysis`, `Models/MindMap`, `Editor/MindMapLayout` | `AITests` (« IA locale », « Analyse de texte », « Carte mentale ») |
+| IA locale (résumé, mots-clés, carte mentale) | `Features/Editor/GenerationBar` (avancement, annulation), `Features/MindMap/MindMapViews`, `Features/Settings/SettingsView` (`IntelligenceSettings`), `Features/Editor/NoteEditorModel` (`aiSource`, `run`) | `AI/AIProtocols` (`NoteAIService`, `AISource`), `AI/FoundationModelsAIService` (par défaut), `AI/SourceGrounding` (`TextChunker`, `SourceVerifier`, `SourceLocator`), `AI/SummaryAssembler`, `AI/LocalExtractiveAIService` (repli), `AI/TextAnalysis`, `Models/MindMap`, `Editor/MindMapLayout` | `FoundationModelsAITests`, `AITests`, `AppleEnginesIntegrationTests` |
 | Confidentialité, RGPD | `Features/Settings/SettingsView` (`PrivacySettings`), `Config/Notitia.entitlements`, `Resources/PrivacyInfo.xcprivacy` | `Privacy/AudioVault`, `Privacy/KeyStore`, `Privacy/RetentionPolicy`, `Export/DataExporter`, `Export/MarkdownRenderer`, `Storage/AppPaths` | `PrivacyTests` |
 | Prise en main (tutoriel, note « Aide ») | `Features/Welcome/TutorialView` | `Storage/HelpContent`, `Storage/SampleData` (mode démo) | `HelpContentTests` |
 | Identité visuelle | `DesignSystem/Theme` (jetons), `DesignSystem/Components`, `Resources/Assets.xcassets` | — | — |
@@ -53,7 +54,6 @@ Pour brancher un nouveau moteur de transcription ou d'IA :
 2. l'ajouter à `EngineCatalog.transcriptionEngines` / `aiServices` (les Réglages listent ce catalogue et grisent
    les moteurs indisponibles) ;
 3. le choisir selon l'`id` dans `EngineCatalog.transcriptionEngine(id:)` / `aiService(id:)`.
-   `aiService(id:)` ignore encore l'`id` : seul le moteur extractif existe pour les résumés.
 
 ## Format de données portable
 
@@ -171,13 +171,20 @@ AudioRecorder → AudioChunk ─┬─▶ TranscriptionEngine (SpeechAnalyzer ou
     `SoundEventAggregator` (seuils, hystérésis, fusion). `LevelAnnotationDetector` : `LevelAnalyzer`, pur.
   - `ToneAnalyzer` : passages de quelques phrases (`TonePassages`) ; Foundation Models (`@Generable` : catégorie +
     sujet, le libellé est construit par Notitia) si disponible, sinon `NLTagger` (polarité, seuil 0,6).
+  - `FoundationModelsAIService` (moteur de synthèse par défaut) : **reformule** résumés, mots-clés et cartes
+    mentales. La source est découpée (`TextChunker`, taille tirée de `SystemLanguageModel.contextSize`), chaque
+    morceau passe dans une session distincte avec une sortie `@Generable`, et chaque élément doit citer sa phrase.
+    `SourceVerifier` écarte les citations introuvables ; `SourceLocator` relie la phrase à l'instant de
+    l'enregistrement (repère `[mm:ss]` cliquable) ; `SummaryAssembler` produit les mêmes blocs que le moteur
+    extractif. Repli automatique sur `LocalExtractiveAIService` si Apple Intelligence est indisponible ou
+    n'aboutit pas. Piège rencontré : un type `@Generable` réutilisé par plusieurs listes faisait recopier au
+    modèle la référence du schéma (`#/$defs/…`) au lieu de la citation ; d'où une liste unique avec une catégorie,
+    et la citation demandée avant la reformulation.
   - `LocalExtractiveAIService` produit de vrais résultats hors ligne : sélection des phrases par fréquence des
     termes, repérage des décisions, actions et questions, entités nommées et dates (NaturalLanguage,
     NSDataDetector).
 - Les résultats IA sont toujours des **blocs éditables** ; les annotations sont marquées « automatique » et
   masquables, la transcription d'origine reste en lecture seule.
-- Le prompt de carte mentale de l'ancienne app (`lib/services/mind_map_service.dart`, règle `sourceText`) est
-  à reprendre pour des résumés génératifs avec Foundation Models.
 
 ## Ce qui vient de l'ancienne application (Flutter)
 

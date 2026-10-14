@@ -48,11 +48,14 @@ final class NoteEditorModel {
     /// Bloc vers lequel faire défiler l'éditeur.
     var scrollTarget: UUID?
 
-    var isGenerating = false
+    /// Action IA en cours, affichée par la barre de génération et l'inspecteur.
+    private(set) var generation: Generation?
+    var isGenerating: Bool { generation != nil }
     var lastError: String?
 
     @ObservationIgnored private let services: AppServices
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var generationTask: Task<Void, Never>?
     @ObservationIgnored private var hasPendingChanges = false
 
     init(note: Note, services: AppServices, isReadOnly: Bool = false) {
@@ -340,14 +343,17 @@ final class NoteEditorModel {
     // MARK: Transcriptions
 
     /// Texte source des actions IA : les transcriptions si la note en a, sinon son contenu.
+    /// Avec une transcription, la source porte aussi ses segments : chaque point d'un résumé reformulé
+    /// reçoit l'horodatage de la phrase dont il vient.
     var aiSource: AISource {
-        let transcripts = note.recordings
+        let recordings = note.recordings
             .sorted { $0.createdAt < $1.createdAt }
-            .map(\.segments.fullText)
-            .filter { !$0.isEmpty }
+            .map { AISource.Recording(id: $0.uid, segments: $0.segments) }
+            .filter { !$0.segments.fullText.isEmpty }
         let ownText = NoteDocument(blocks: blocks.filter { $0.kind != .mindMap }).plainText
-        let text = transcripts.isEmpty ? ownText : transcripts.joined(separator: "\n\n")
-        return AISource(title: note.title, text: text, localeIdentifier: note.recordings.first?.localeIdentifier ?? "fr_FR")
+        let text = recordings.isEmpty ? ownText : recordings.map(\.segments.fullText).joined(separator: "\n\n")
+        return AISource(title: note.title, text: text, localeIdentifier: note.recordings.first?.localeIdentifier ?? "fr_FR",
+                        recordings: recordings)
     }
 
     var transcriptBlockID: UUID? {
@@ -404,35 +410,84 @@ final class NoteEditorModel {
         case summary(focus: [String])
         case keywords
         case mindMap(focus: [String])
+
+        /// Libellé affiché pendant la génération.
+        var progressTitle: String {
+            switch self {
+            case .summary(let focus): focus.isEmpty ? String(localized: "Résumé en cours…") : String(localized: "Synthèse en cours…")
+            case .keywords: String(localized: "Extraction des mots-clés…")
+            case .mindMap: String(localized: "Carte mentale en cours…")
+            }
+        }
+    }
+
+    struct Generation: Equatable {
+        /// Distingue une génération annulée d'une génération relancée juste après.
+        var id = UUID()
+        var title: String
+        /// « Apple Intelligence » ou « Moteur local ».
+        var engineName: String
+        /// `nil` tant que le moteur n'a pas annoncé le nombre d'étapes (ou s'il n'en a qu'une).
+        var progress: AIProgress?
+
+        var detail: String {
+            guard let progress, progress.total > 1 else { return engineName }
+            return String(localized: "\(engineName) · étape \(min(progress.completed + 1, progress.total)) sur \(progress.total)")
+        }
     }
 
     func run(_ action: AIAction) {
         guard !isGenerating else { return }
         let source = aiSource
-        let service = EngineCatalog.aiService(id: UserDefaults.standard.string(forKey: Preferences.Keys.aiService) ?? "")
+        let serviceID = UserDefaults.standard.string(forKey: Preferences.Keys.aiService) ?? EngineCatalog.defaultAIServiceID
+        let current = Generation(
+            title: action.progressTitle,
+            engineName: EngineCatalog.effectiveAIServiceName(id: serviceID, locale: Locale(identifier: source.localeIdentifier))
+        )
+        let id = current.id
+        let service = EngineCatalog.aiService(id: serviceID) { [weak self] progress in
+            Task { @MainActor in
+                if self?.generation?.id == id { self?.generation?.progress = progress }
+            }
+        }
         // Les résultats s'ajoutent en fin de note, dans l'ordre où on les demande.
         let anchor = blocks.last?.id
-        isGenerating = true
+        generation = current
         lastError = nil
-        Task {
-            defer { isGenerating = false }
+        generationTask = Task {
+            defer {
+                if generation?.id == id {
+                    generation = nil
+                    generationTask = nil
+                }
+            }
             do {
                 switch action {
                 case .summary(let focus):
-                    insertBlocks(try await service.summarize(source, focus: focus), after: anchor)
+                    let blocks = try await service.summarize(source, focus: focus)
+                    guard !Task.isCancelled else { return }
+                    insertBlocks(blocks, after: anchor)
                 case .keywords:
                     let keywords = try await service.keywords(source, limit: 10)
+                    guard !Task.isCancelled else { return }
                     insertBlocks([Block(kind: .callout, text: RichText(runs: [
                         TextRun("Mots-clés : ", style: TextStyle(bold: true)),
                         TextRun(keywords.joined(separator: " · ")),
                     ]))], after: anchor)
                 case .mindMap(let focus):
                     let map = try await service.mindMap(source, focus: focus)
+                    guard !Task.isCancelled else { return }
                     insertBlocks([Block(kind: .mindMap, mindMap: map)], after: anchor)
                 }
             } catch {
-                lastError = error.localizedDescription
+                if !Task.isCancelled { lastError = error.localizedDescription }
             }
         }
+    }
+
+    /// Annule la génération en cours : rien n'est ajouté à la note.
+    func cancelGeneration() {
+        generationTask?.cancel()
+        generation = nil
     }
 }

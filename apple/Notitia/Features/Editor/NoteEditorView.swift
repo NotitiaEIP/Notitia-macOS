@@ -33,10 +33,17 @@ struct NoteEditorView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if recorder.isActive, recorder.noteID == model.note.uid {
-                RecordingBar()
-                    .padding(.bottom, Spacing.l)
+            VStack(spacing: Spacing.s) {
+                if let generation = model.generation {
+                    GenerationBar(model: model, generation: generation)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                if recorder.isActive, recorder.noteID == model.note.uid {
+                    RecordingBar()
+                }
             }
+            .padding(.bottom, model.generation != nil || recorder.isActive ? Spacing.l : 0)
+            .animation(.smooth, value: model.generation?.id)
         }
         .toolbar { EditorToolbar(model: model) }
         .onChange(of: model.titleFocusToken) { isTitleFocused = true }

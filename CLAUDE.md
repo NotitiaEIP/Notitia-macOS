@@ -36,7 +36,7 @@ contient l'app **macOS** en Swift/SwiftUI et le package partagé `NotitiaKit`, q
 | Éditeur | Éditeur **par blocs typés**, texte riche. Chaque bloc est un `NSTextView` (`BlockTextView`), pas un `TextEditor` (il faut intercepter Entrée, Retour arrière, Tab et les flèches) |
 | Données | SwiftData en local. Contenu d'une note = `NoteDocument` en **JSON versionné**, le format commun à toutes les plateformes (positions en UTF-16, styles et couleurs sémantiques) |
 | Confidentialité | **100 % hors ligne, RGPD dès la conception** : sandbox **sans** `com.apple.security.network.client`, audio chiffré (AES-GCM, clé dans le trousseau), consentement avant chaque enregistrement, export complet, effacement total. Voir `docs/PRIVACY.md` |
-| Transcription / LLM | Tout **sur l'appareil**, derrière les protocoles de `NotitiaKit/AI/AIProtocols.swift`. Transcription : **SpeechAnalyzer** (`AppleSpeechTranscriptionEngine`, par défaut) ou `DemoTranscriptionEngine`. Résumés : `LocalExtractiveAIService`. Ton : `ToneAnalyzer` (Foundation Models, repli NaturalLanguage) |
+| Transcription / LLM | Tout **sur l'appareil**, derrière les protocoles de `NotitiaKit/AI/AIProtocols.swift`. Transcription : **SpeechAnalyzer** (`AppleSpeechTranscriptionEngine`, par défaut) ou `DemoTranscriptionEngine`. Résumés : `FoundationModelsAIService` (par défaut, sources vérifiées), repli `LocalExtractiveAIService`. Ton : `ToneAnalyzer` (Foundation Models, repli NaturalLanguage) |
 | Émotions | **Jamais déduites** (AI Act art. 5 §1 f : interdit au travail et à l'école). On annote ce qu'on entend (sons, volume) et le ton du **texte**, jamais une personne. Voir `docs/PRIVACY.md` §6 |
 | Dépendances | **Aucune** : pas de SPM externe, pas de CocoaPods, pas de clé d'API |
 | Abandonné de la v1 | NFC, réunions LAN, mascotte, abonnement, authentification Supabase |
@@ -85,9 +85,11 @@ dans `~/Library/Containers/com.notitia.Notitia/Data/tmp/`, utilisées pour `docs
   l'outil de capture, pas un bogue de l'app.
 - Les **Outils d'écriture d'Apple** sont désactivés volontairement dans l'éditeur (ils peuvent passer par le
   Private Cloud Compute).
-- **`EngineCatalog.aiService(id:)` ignore encore l'`id`** (seul le moteur extractif existe pour les résumés). Un
-  nouveau moteur doit être ajouté à la liste **et** choisi dans cette fonction (`transcriptionEngine(id:)`, lui,
-  choisit déjà selon l'`id`).
+- **Nouveau moteur** : l'ajouter à la liste d'`EngineCatalog` **et** le choisir dans `transcriptionEngine(id:)` ou
+  `aiService(id:)`.
+- **Schémas `@Generable`** : ne pas réutiliser un même type dans plusieurs listes d'une réponse. Le modèle recopiait
+  alors `#/$defs/PointReading` à la place de la citation (tout était rejeté par `SourceVerifier`, d'où un repli
+  silencieux sur le moteur extractif). Demander la citation **avant** la reformulation.
 - **Modèle de langue de SpeechAnalyzer** : il peut être présent sur le disque mais pas encore « réservé » pour
   l'app (`AssetInventory.status` = `.supported`). `assetInstallationRequest` renvoie alors `nil` et le réserve sans
   rien télécharger. Le moteur le fait au démarrage ; un vrai téléchargement passe par Réglages › Transcription,
@@ -103,35 +105,40 @@ dans `~/Library/Containers/com.notitia.Notitia/Data/tmp/`, utilisées pour `docs
 - **Tests et SwiftData** : n'ouvrir une base en mémoire (`NotitiaSchema.makeContainer(inMemory: true)`) que dans
   les suites `.serialized` qui en ont besoin. Une base ouverte en parallèle par une autre suite a fait échouer une
   fois, de façon intermittente, « Base de données et RGPD ». Un modèle non inséré suffit pour tester sa logique.
+- **Réunion de test avec audio** (sans micro) : `scripts/reunion-test/generer.sh` fabrique une réunion de 2 min 30
+  à trois voix de synthèse, dans le dossier temporaire du conteneur (le seul lisible par l'app sandboxée). Puis
+  `apple/build/Build/Products/Debug/Notitia.app/Contents/MacOS/Notitia -NotitiaDemoMode YES -NotitiaDemoAudio
+  notitia-reunion-test.m4a` : la note « Réunion de test — sprint 3 » (Réunions) passe par la vraie transcription,
+  les sons, l'empreinte et l'audio chiffré (`DemoAudioImport`, Debug uniquement). Le journal (`NSLog`) indique le
+  nombre de segments. Un `AVAudioFile` en écriture doit être fermé (`close()`), sinon le fichier AAC est illisible.
+  Les arguments sont dans le schéma partagé, **décochés** (Product › Scheme › Edit Scheme › Run › Arguments) : les
+  cocher pour un ⌘R en mode démo. Le mode démo est en mémoire : tout disparaît en quittant l'app.
 - **Captures en mode démo** sans fermer l'app de Lucas : `open -n build/Build/Products/Debug/Notitia.app --args
   -NotitiaDemoMode YES -NotitiaSnapshots YES`, puis fermer cette seule instance.
 
-## État actuel (2026-10-13)
+## État actuel (2026-10-14)
 
-- `main` : `Initial macOS Notitia implementation` (itération 1), poussé sur `origin`
-  (`git@github.com:NotitiaEIP/Notitia-macOS.git`).
-- Branche **`feature/transcription-enrichie`** (non commitée au moment d'écrire) : itération 2, voir
-  `docs/ROADMAP.md` › Fait. Transcription réelle SpeechAnalyzer, sons et volume, ton des passages, citations avec
-  contexte, empreinte de la transcription d'origine. **95 tests** passent, plus 3 tests d'intégration vérifiés sur
-  le Mac de Lucas (transcription française exacte, silence repéré, ton conflictuel repéré). L'app compile sans
-  avertissement. Rendu vérifié par captures en mode démo (`docs/screenshots/6-…`, `7-…`).
-- `CLAUDE.md` n'est pas encore versionné.
-- Pas encore testé à la main : un vrai enregistrement dans l'app (micro, rires réels, réglage des seuils),
-  l'installation du modèle depuis les Réglages dans le sandbox, plusieurs Mac.
+- `main` : itération 1. `feature/transcription-enrichie` (commit `d09f2bf`, par Lucas) : itération 2,
+  transcription SpeechAnalyzer et transcription enrichie.
+- Branche **`feature/foundation-models-summaries`** (partie de `d09f2bf`, non commitée au moment d'écrire) :
+  itération 3, résumés, mots-clés et cartes mentales reformulés par Foundation Models, avec sources vérifiées et
+  repères cliquables, barre de génération (étape, moteur, Annuler). **114 tests** passent, plus 4 tests d'intégration vérifiés sur le Mac de Lucas (résumé de la
+  réunion de démo en environ 7 s). Vérifié aussi dans l'app sandboxée (captures du mode démo). Compile sans
+  avertissement.
+- `CLAUDE.md` est versionné depuis `d09f2bf`.
+- Pas encore testé à la main : un vrai enregistrement (micro, rires réels, seuils), une réunion longue résumée,
+  l'installation du modèle de transcription depuis les Réglages, plusieurs Mac.
 
 ## Prochaine étape conseillée
 
-1. Tester un vrai enregistrement dans l'app (`docs/ROADMAP.md` › Prochaines étapes, point 1), puis relire et
-   fusionner `feature/transcription-enrichie` par PR.
-2. Résumés génératifs avec Foundation Models (nouveau `NoteAIService`, en gardant `LocalExtractiveAIService` en
-   repli ; découper les longues transcriptions ; reprendre la règle « chaque nœud cite son passage source »).
+1. Tester un vrai enregistrement long dans l'app (`docs/ROADMAP.md` › Prochaines étapes, points 1 et 2), puis
+   relire et fusionner les deux branches par PR (`feature/transcription-enrichie`, puis celle-ci).
+2. Séparation des locuteurs (sur l'appareil uniquement).
 
 ## À ne pas oublier
 
 - L'ancien dépôt Flutter contient des **clés d'API en clair dans l'historique git** (Anthropic, Gemini ×2,
   Mistral, Deepgram). Elles doivent être **révoquées** chez chaque fournisseur (PRIVACY.md §8).
-- Le prompt de carte mentale de la v1 (`../MVP_Notitia/lib/services/mind_map_service.dart`, règle « chaque nœud
-  cite son passage source ») est à reprendre pour les résumés et cartes mentales avec Foundation Models.
 - L'ancien dossier `../Notitia` ne contient plus qu'un `.git` sans commit et deux `.gitignore` : c'est un
   reste du déplacement, il peut être supprimé (à confirmer avec Lucas avant).
 - `../Allopets_APP` est un **autre** projet EIP (refuges animaliers), sans rapport avec Notitia.

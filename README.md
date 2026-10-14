@@ -36,7 +36,9 @@ C'est le projet EIP Epitech de l'équipe Notitia, version 2 : une réécriture c
   transcription d'origine en lecture seule avec empreinte. **Aucune déduction d'émotion** : les annotations décrivent
   un moment, jamais une personne (voir [docs/PRIVACY.md](docs/PRIVACY.md) §6).
 - **Intelligence locale** : résumé (points clés, décisions, actions, questions), mots-clés, carte mentale
-  interactive reliée à la transcription, et « réécrire avec mes mots-clés ».
+  interactive reliée à la transcription, et « réécrire avec mes mots-clés ». Avec Apple Intelligence, tout est
+  **reformulé** sur le Mac, et chaque point renvoie à la phrase prononcée (les points sans source vérifiable sont
+  écartés).
 - **Confidentialité** : 100 % hors ligne, aucune connexion réseau autorisée, export complet, effacement total.
   Voir [docs/PRIVACY.md](docs/PRIVACY.md).
 
@@ -44,8 +46,8 @@ C'est le projet EIP Epitech de l'équipe Notitia, version 2 : une réécriture c
 
 > La transcription utilise le modèle de langue fourni par macOS : installez-le une fois dans
 > Réglages › Transcription. Le moteur de **démonstration** (texte d'exemple) reste disponible pour essayer
-> l'application sans parler. Le résumé et la carte mentale utilisent le moteur extractif local ; les résumés
-> reformulés par Foundation Models sont la prochaine étape (voir [docs/ROADMAP.md](docs/ROADMAP.md)).
+> l'application sans parler. Sans Apple Intelligence (Mac non compatible ou fonction désactivée), le résumé et la
+> carte mentale utilisent le moteur extractif local, qui sélectionne les phrases telles quelles.
 
 ## Prérequis
 
@@ -84,12 +86,13 @@ cd apple/NotitiaKit
 swift test
 ```
 
-95 tests couvrent : note d'aide, texte riche (dont Unicode/UTF-16), opérations de l'éditeur, raccourcis Markdown,
+112 tests couvrent : note d'aide, texte riche (dont Unicode/UTF-16), opérations de l'éditeur, raccourcis Markdown,
 format de document, recherche, IA locale, moteur de démonstration, disposition des cartes mentales,
 chiffrement de l'audio, conservation des données, export et effacement RGPD, annotations (sons, volume, ton),
-chronologie et citations, empreinte de la transcription, suivi des résultats de SpeechAnalyzer.
+chronologie et citations, empreinte de la transcription, suivi des résultats de SpeechAnalyzer, découpage et
+vérification des sources des résumés reformulés.
 
-Trois tests d'**intégration** utilisent les vrais moteurs d'Apple (parole de synthèse produite par `say`, voix
+Quatre tests d'**intégration** utilisent les vrais moteurs d'Apple (parole de synthèse produite par `say`, voix
 française « Thomas », modèle de langue français, Apple Intelligence). Ils sont désactivés par défaut :
 
 ```bash

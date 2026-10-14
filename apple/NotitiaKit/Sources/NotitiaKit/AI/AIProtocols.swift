@@ -64,14 +64,28 @@ public protocol AnnotationDetector: Sendable {
 
 /// Texte source d'une action IA : contenu d'une note ou transcription.
 public struct AISource: Sendable {
+    /// Transcription d'un enregistrement, pour relier chaque point d'un résumé à l'instant où il a été dit.
+    public struct Recording: Sendable {
+        public var id: UUID
+        public var segments: [TranscriptSegment]
+
+        public init(id: UUID, segments: [TranscriptSegment]) {
+            self.id = id
+            self.segments = segments
+        }
+    }
+
     public var title: String
     public var text: String
     public var localeIdentifier: String
+    /// Vide quand la source est le texte de la note.
+    public var recordings: [Recording]
 
-    public init(title: String, text: String, localeIdentifier: String = "fr_FR") {
+    public init(title: String, text: String, localeIdentifier: String = "fr_FR", recordings: [Recording] = []) {
         self.title = title
         self.text = text
         self.localeIdentifier = localeIdentifier
+        self.recordings = recordings
     }
 }
 
@@ -85,6 +99,19 @@ public enum AIError: LocalizedError {
         case .engineUnavailable(let name): "Le moteur « \(name) » n'est pas disponible."
         }
     }
+}
+
+/// Avancement d'une action IA longue (par exemple 2 morceaux traités sur 5).
+public struct AIProgress: Equatable, Sendable {
+    public var completed: Int
+    public var total: Int
+
+    public init(completed: Int, total: Int) {
+        self.completed = max(0, min(completed, total))
+        self.total = max(0, total)
+    }
+
+    public var fraction: Double { total > 0 ? Double(completed) / Double(total) : 0 }
 }
 
 /// Actions IA sur les notes. Toutes renvoient des blocs ou des structures éditables :
@@ -115,15 +142,12 @@ public enum EngineCatalog {
         ),
     ]
 
+    /// Moteur de synthèse par défaut : Apple Intelligence, avec repli automatique sur le moteur extractif.
+    public static let defaultAIServiceID = FoundationModelsAIService.descriptorValue.id
+
     public static let aiServices: [EngineDescriptor] = [
+        FoundationModelsAIService.descriptorValue,
         LocalExtractiveAIService.descriptorValue,
-        EngineDescriptor(
-            id: "apple.foundationmodels",
-            displayName: "Apple Intelligence — sur l'appareil",
-            detail: "Foundation Models (macOS 26). Hors ligne. Utilisé pour le ton des passages ; résumés reformulés bientôt disponibles.",
-            requiresNetwork: false,
-            isAvailable: false
-        ),
         EngineDescriptor(
             id: "cloud.llm",
             displayName: "Modèle de langage — cloud",
@@ -143,9 +167,22 @@ public enum EngineCatalog {
         }
     }
 
-    /// Seul moteur de synthèse disponible pour l'instant : l'`id` est ignoré.
-    /// Brancher Foundation Models ici quand les résumés reformulés seront prêts.
-    public static func aiService(id: String) -> any NoteAIService {
-        LocalExtractiveAIService()
+    /// Moteur correspondant à `id` ; un identifiant inconnu ou vide donne le moteur par défaut.
+    /// `onProgress` n'est appelé que par les moteurs qui travaillent en plusieurs étapes.
+    public static func aiService(id: String, onProgress: (@Sendable (AIProgress) -> Void)? = nil) -> any NoteAIService {
+        switch id {
+        case LocalExtractiveAIService.descriptorValue.id:
+            LocalExtractiveAIService()
+        default:
+            FoundationModelsAIService(onProgress: onProgress)
+        }
+    }
+
+    /// Nom du moteur qui travaillera **réellement** pour `id`, compte tenu du repli quand Apple Intelligence
+    /// n'est pas disponible pour cette langue (affiché pendant une génération et dans l'inspecteur).
+    public static func effectiveAIServiceName(id: String, locale: Locale) -> String {
+        let usesAppleIntelligence = id != LocalExtractiveAIService.descriptorValue.id
+            && FoundationModelsAIService.unavailabilityReason(for: locale) == nil
+        return usesAppleIntelligence ? "Apple Intelligence" : "Moteur local"
     }
 }

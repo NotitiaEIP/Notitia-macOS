@@ -22,19 +22,16 @@ struct AppleEnginesIntegrationTests {
         say.waitUntilExit()
         try #require(say.terminationStatus == 0, "voix française « Thomas » introuvable")
 
-        let file = try AVAudioFile(forReading: tmp)
-        let format = try #require(AVAudioFormat(standardFormatWithSampleRate: file.processingFormat.sampleRate, channels: 1))
-        let buffer = try #require(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
-        try file.read(into: buffer)
-        var samples = Array(UnsafeBufferPointer(start: try #require(buffer.floatChannelData?[0]), count: Int(buffer.frameLength)))
-        samples += [Float](repeating: 0, count: Int(trailingSilence * format.sampleRate))
-
-        let size = 4096
-        return stride(from: 0, to: samples.count, by: size).map { offset in
-            AudioChunk(samples: Array(samples[offset..<min(offset + size, samples.count)]),
-                       sampleRate: format.sampleRate,
-                       time: Double(offset) / format.sampleRate)
+        var (chunks, _) = try AudioFileReader.chunks(of: tmp)
+        if trailingSilence > 0, let rate = chunks.first?.sampleRate {
+            let start = chunks.last.map { $0.time + $0.duration } ?? 0
+            let silence = [Float](repeating: 0, count: Int(trailingSilence * rate))
+            chunks += stride(from: 0, to: silence.count, by: 4096).map { offset in
+                AudioChunk(samples: Array(silence[offset..<min(offset + 4096, silence.count)]), sampleRate: rate,
+                           time: start + Double(offset) / rate)
+            }
         }
+        return chunks
     }
 
     static func stream(_ chunks: [AudioChunk]) -> AsyncStream<AudioChunk> {
@@ -75,6 +72,36 @@ struct AppleEnginesIntegrationTests {
         print("Annotations :", annotations.map { "\($0.kind.rawValue) \($0.start)–\($0.end)" })
         #expect(!annotations.contains { $0.kind == .laughter || $0.kind == .applause }, "pas de faux rire sur de la parole")
         #expect(annotations.contains { $0.kind == .longSilence }, "les 8 s de silence finales sont repérées")
+    }
+
+    @Test func resumeReformuleEtVerifie() async throws {
+        let locale = Locale(identifier: "fr_FR")
+        try #require(FoundationModelsAIService.unavailabilityReason(for: locale) == nil, "Apple Intelligence indisponible sur ce Mac")
+        let script = DemoTranscriptionEngine.defaultScript
+        let recordingID = UUID()
+        let segments = script.enumerated().map { TranscriptSegment(text: $0.element, start: Double($0.offset) * 5, end: Double($0.offset) * 5 + 4) }
+        let source = AISource(title: "Point d'avancement", text: script.joined(separator: " "), localeIdentifier: "fr_FR",
+                              recordings: [.init(id: recordingID, segments: segments)])
+
+        let start = Date()
+        let blocks = try await FoundationModelsAIService().summarize(source, focus: [])
+        print("Résumé (\(Int(Date().timeIntervalSince(start))) s) :\n" + MarkdownRenderer.render(blocks: blocks))
+        #expect(blocks.last?.text.plainText.contains("Reformulé sur ce Mac") == true, "pas de repli sur le moteur local")
+        let headings = blocks.filter { $0.kind == .heading3 }.map(\.text.plainText)
+        #expect(headings.contains("Décisions") || headings.contains("Actions"))
+        // Chaque point porte un horodatage qui renvoie à une phrase réellement prononcée.
+        let points = blocks.filter { $0.kind == .bulleted || $0.kind == .todo }
+        #expect(!points.isEmpty)
+        for point in points {
+            let link = point.text.runs.compactMap(\.style.link).first.flatMap(URL.init(string:)).flatMap(TranscriptLink.init(url:))
+            #expect(link?.recordingID == recordingID, "point sans horodatage : \(point.text.plainText)")
+        }
+
+        let map = try await FoundationModelsAIService().mindMap(source, focus: [])
+        print("Carte mentale :", map.root.children.map { "\($0.label) → \($0.children.map(\.label))" })
+        let leaves = map.root.children.filter { $0.label != "Personnes" && $0.label != "Échéances" }.flatMap(\.children)
+        #expect(!leaves.isEmpty)
+        #expect(leaves.allSatisfy { leaf in leaf.sourceText.map(source.text.contains) == true }, "chaque nœud cite une phrase exacte")
     }
 
     @Test func tonAvecFoundationModels() async throws {

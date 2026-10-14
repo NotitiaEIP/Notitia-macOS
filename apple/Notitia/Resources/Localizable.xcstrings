@@ -36,7 +36,30 @@
         }
       }
     },
+    "%@ · étape %lld sur %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · étape %2$lld sur %3$lld"
+          }
+        }
+      }
+    },
     "%@ · rien ne quitte ce Mac" : {
+
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@ Le moteur local est utilisé en attendant." : {
 
     },
     "%@–%@ · automatique" : {
@@ -134,10 +157,19 @@
     "Apparence" : {
 
     },
+    "Apple Intelligence est disponible sur ce Mac" : {
+
+    },
+    "Apple Intelligence reformule résumés et cartes mentales sur ce Mac, sans Internet. Chaque point doit citer une phrase de la source : les points dont la phrase est introuvable sont écartés, et un horodatage permet de réécouter la phrase. Le moteur local, lui, sélectionne les phrases telles quelles." : {
+
+    },
     "Après l'enregistrement, à partir du texte seulement (par exemple « échange tendu sur le budget »). Utilise Apple Intelligence si elle est disponible." : {
 
     },
     "Arrêter" : {
+
+    },
+    "Arrêter : rien ne sera ajouté à la note" : {
 
     },
     "Arrêter et enregistrer (⇧⌘R)" : {
@@ -210,6 +242,9 @@
 
     },
     "Carte mentale" : {
+
+    },
+    "Carte mentale en cours…" : {
 
     },
     "Cette langue n'est pas prise en charge par la transcription d'Apple." : {
@@ -477,6 +512,9 @@
     "Exporter toutes mes données…" : {
 
     },
+    "Extraction des mots-clés…" : {
+
+    },
     "Extraire les mots-clés" : {
 
     },
@@ -577,9 +615,6 @@
 
     },
     "Le moteur d'Apple reconnaît réellement la parole, sur ce Mac et sans Internet. Le moteur de démonstration rejoue un texte d'exemple, pour essayer l'application sans parler." : {
-
-    },
-    "Le moteur local sélectionne et organise les phrases de vos notes pour produire résumés, mots-clés et cartes mentales. Il fonctionne sans Internet." : {
 
     },
     "Le texte ou les sons captés ne correspondent plus à l'empreinte calculée à la fin de l'enregistrement." : {
@@ -806,6 +841,9 @@
     "Résumé : points clés, décisions, actions et questions" : {
 
     },
+    "Résumé en cours…" : {
+
+    },
     "Résumer" : {
 
     },
@@ -891,6 +929,9 @@
 
     },
     "Synthèse" : {
+
+    },
+    "Synthèse en cours…" : {
 
     },
     "Tâche" : {

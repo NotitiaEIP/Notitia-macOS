@@ -42,6 +42,10 @@ final class AppServices {
                 SampleData.populate(container.mainContext)
                 HelpContent.install(in: container.mainContext)
             }
+            #if DEBUG
+            // `-NotitiaDemoAudio <fichier>` : réunion de test créée à partir d'un fichier audio.
+            Task { await DemoAudioImport.run(services: self) }
+            #endif
             // Valeur volatile : le mode démo ne modifie pas les préférences réelles de l'utilisateur.
             var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
             arguments[Preferences.Keys.hasCompletedWelcome] = !showTutorial

@@ -180,6 +180,10 @@ public enum HelpContent {
             Block(kind: .bulleted, text: term("Extraire les mots-clés : ", "les termes les plus importants de la note.")),
             Block(kind: .bulleted, text: term("Créer une carte mentale : ", "les thèmes, idées, personnes et échéances. Cliquez sur un nœud pour retrouver la phrase d'origine dans la transcription, double-cliquez pour le renommer, utilisez ⊖ pour replier une branche, « Agrandir » pour la voir en grand.")),
             Block(kind: .bulleted, text: term("Réécrire avec mes mots-clés : ", "saisissez vos propres mots-clés, séparés par des virgules, pour obtenir une synthèse ou une carte organisée autour d'eux.")),
+            Block(kind: .callout, text: RichText(runs: [
+                TextRun("Avec Apple Intelligence : ", style: bold),
+                TextRun("si elle est activée sur ce Mac, les résumés et cartes mentales sont reformulés, sans Internet. Chaque point doit venir d'une phrase réellement écrite ou prononcée : sinon, il est écarté. Le repère [00:00] d'un point rejoue cette phrase. Sans Apple Intelligence, Notitia sélectionne les phrases telles quelles."),
+            ])),
             Block(text: "Les résultats sont ajoutés à la fin de la note sous forme de blocs ordinaires : vous pouvez les corriger, les compléter ou les supprimer. Voici une carte mentale d'exemple :"),
             Block(kind: .mindMap, mindMap: featureMap),
         ]

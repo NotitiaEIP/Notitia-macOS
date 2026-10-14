@@ -26,7 +26,7 @@ l'utilisateur est seul maître de ses données. Ce registre décrit ce que fait 
 | Prise de notes | Texte, images | Organisation personnelle | Usage personnel | Jusqu'à suppression (corbeille : 30 j) | Aucun |
 | Enregistrement de réunion | **Voix des participants** (audio) | Transcription | Consentement / intérêt légitime, **avec information préalable des participants** | Réglable : 7 j, 30 j, 3 mois, 1 an ou manuel | Aucun |
 | Transcription | Texte transcrit, noms de locuteurs | Notes de réunion | idem | Jusqu'à suppression (survit à l'audio) | Aucun |
-| Résumé, carte mentale | Dérivés du texte | Synthèse | idem | Comme la note | Aucun (traitement local) |
+| Résumé, carte mentale | Dérivés du texte | Synthèse | idem | Comme la note | Aucun (Foundation Models sur l'appareil, ou moteur extractif local) |
 | Annotation des sons et du volume (activée par défaut, désactivable) | Événements horodatés : rires, applaudissements, longs silences, volume élevé. **Aucune attribution à une personne** | Compte rendu fidèle | idem | Comme la transcription | Aucun (SoundAnalysis, sur l'appareil) |
 | Ton des passages (**opt-in**) | Libellé du ton d'un passage, déduit du **texte** seul | Compte rendu fidèle | idem | Comme la transcription | Aucun (NaturalLanguage ou Foundation Models, sur l'appareil) |
 
@@ -47,7 +47,8 @@ l'utilisateur est seul maître de ses données. Ce registre décrit ce que fait 
 | Aucun secret dans le code | Les futures clés éventuelles iront dans le trousseau | — |
 | Transcription sur l'appareil | SpeechAnalyzer (macOS 26). Le modèle de chaque langue est fourni et installé par macOS (`AssetInventory`) ; l'app reste sans `network.client`. Jamais de téléchargement pendant un enregistrement | `AppleSpeechTranscriptionEngine` |
 | Pas d'inférence d'émotion | Seuls des sons (classifieur intégré d'Apple), le volume mesuré et le ton du **texte** sont annotés. Les mesures de la voix (`SFVoiceAnalytics`) ne sont pas utilisées | `SoundEventDetector`, `LevelAnalyzer`, `ToneAnalyzer` |
-| Modèle de langage local uniquement | Foundation Models via `SystemLanguageModel` (sur l'appareil). `PrivateCloudComputeLanguageModel` n'est **jamais** utilisé | `ToneAnalyzer` |
+| Modèle de langage local uniquement | Foundation Models via `SystemLanguageModel` (sur l'appareil). `PrivateCloudComputeLanguageModel` n'est **jamais** utilisé | `ToneAnalyzer`, `FoundationModelsAIService` |
+| Résumés vérifiables | Chaque point d'un résumé ou d'une carte mentale reformulés doit citer sa phrase source ; un point dont la citation est introuvable est écarté. Les points renvoient à l'instant de l'enregistrement | `SourceVerifier`, `SourceLocator`, `SummaryAssembler` |
 | Annotations transparentes | Chaque annotation est marquée « automatique » avec sa source et sa confiance ; elle peut être masquée (l'original est conservé) | `TranscriptAnnotation`, `TranscriptBlockView` |
 | Transcription d'origine | Lecture seule ; empreinte SHA-256 calculée à l'arrêt, état affiché dans l'inspecteur. Détecte une modification de la base, **n'est pas une preuve** opposable | `TranscriptIntegrity` |
 | Citations dans leur contexte | « Citer avec le contexte » insère la phrase, la précédente, la suivante, les annotations et des horodatages qui rejouent l'audio | `TranscriptTimeline.quoteBlocks` |
